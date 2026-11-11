@@ -23,5 +23,11 @@ cd ..
 SLUG_PATH="${REPO_URL%.git}"
 OWNER="$(basename "$(dirname "$SLUG_PATH")")"
 SLUG="$(basename "$SLUG_PATH")"
+
+case "$SLUG" in
+  *.github.io) LIVE="https://${SLUG}/" ;;
+  *)           LIVE="https://${OWNER}.github.io/${SLUG}/" ;;
+esac
+
 echo "→ pushed to gh-pages (owner: $OWNER, repo: $SLUG)"
-echo "→ live at: https://${OWNER}.github.io/${SLUG}/"
+echo "→ live at: ${LIVE}"
