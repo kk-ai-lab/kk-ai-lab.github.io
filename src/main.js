@@ -270,7 +270,7 @@ window.addEventListener('pointerleave', () => {
 function firePulse() {
   if (!universe) return;
   universe.emit();
-  if (audio.on) audio.burst();
+  audio.burst(((downX || window.innerWidth * 0.5) / window.innerWidth) * 2 - 1);
 }
 
 function endGesture() {
@@ -450,7 +450,7 @@ function updateHud(now, scroll, state, activeChapter) {
     const p = universe.camera.position;
     const f = (v) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2);
     roPos.textContent = `X ${f(p.x)}   Y ${f(p.y)}   Z ${f(p.z)}`;
-    audio.setDepth(clamp(state / 4, 0, 1));
+    audio.setState(state);
   }
 
   if (scroll > 40) scrollcue.classList.add('is-gone');
@@ -483,6 +483,7 @@ function frame(now) {
   lastScrollPos = scroll;
   scrollVel = clamp(Math.abs(dv) / 3200, 0, 1);
   if (universe) universe.setVelocity(scrollVel);
+  audio.setVelocity(scrollVel);
 
   const state = universe && universe.frozen != null ? universe.frozen : stateAt(smoothScroll);
   if (universe) {
