@@ -1,51 +1,69 @@
 /**
  * KK.AI LAB — instrument.
  *
- * Nothing is sampled; the whole bed is synthesised after the first gesture.
+ * Everything is synthesised after the first gesture; there are no audio files.
  *
- * This is deliberately *not* a soundtrack. It is the sound of a machine
- * running in the next room: a sub octave you feel more than hear, an additive
- * chord that retunes itself as you move through the five states, one narrow
- * band of air (never broadband hiss), an irregular telemetry tick, and the
- * occasional FM ping decaying into a dark room. A compressor sits across the
- * output so repeated pulses can never stack into a wall of noise.
+ * Design notes, for whoever touches this next:
+ *
+ * 1. The first version put almost all of its energy below 300 Hz. On a laptop
+ *    speaker that range simply does not reproduce, so the bed disappeared and
+ *    only the tick survived — which reads as "a hum with a beep".
+ *    The pad therefore sits in the D3–A4 register, where its harmonics land in
+ *    the 300–1200 Hz band that every speaker can render.
+ *
+ * 2. A fixed-interval tick is a metronome. Metronomes are annoying. Data now
+ *    arrives in irregular *packets* — a few chirps clustered together, then
+ *    silence — which reads as transmission rather than a clock.
+ *
+ * 3. Nothing holds still. Every layer has its own slow drift: detune on the
+ *    saws, formants on the breath, filter cutoff on the pad. The bed is a
+ *    slowly reconfiguring machine, not a chord that is being held down.
  */
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+const rnd = (a, b) => a + Math.random() * (b - a);
 
-/**
- * One harmonic set per state. Index 0 is the sub foundation, the rest stack
- * upward. The sets are chosen so that scrolling reads as slow modulation
- * rather than a chord change: open fifths → stacked fourths → minor colour →
- * chromatic tension → back down to the widest, lowest fifths.
- */
-export const CHORDS = [
-  /* ORIGIN          */ [26, 38, 45, 50, 57, 62, 69, 74], // D1 D2 A2 D3 A3 D4 A4 D5
-  /* CONNECTION      */ [26, 38, 45, 52, 57, 64, 71, 76], // … E3 A3 E4 B4 E5
-  /* EMERGENCE       */ [26, 38, 45, 53, 60, 65, 72, 77], // … F3 C4 F4 C5 F5
-  /* EXPERIMENTATION */ [26, 37, 44, 51, 58, 63, 70, 75], // … C#2 G#2 D#3 A#3 D#4
-  /* INFINITY        */ [24, 36, 43, 48, 55, 60, 67, 72], // C1 C2 G2 C3 G3 C4 G4 C5
+/* ── harmonic material ──────────────────────────────────────────
+   Three chord tones per state, deliberately in the mid register.
+   Scrolling reads as modulation: open fifths → added sixth → minor
+   colour → chromatic tension → the widest, lowest fifths.        */
+export const TONES = [
+  [50, 57, 62], // ORIGIN          D3 A3 D4
+  [50, 57, 64], // CONNECTION      D3 A3 E4
+  [50, 53, 60], // EMERGENCE       D3 F3 C4
+  [50, 56, 63], // EXPERIMENTATION D3 G#3 D#4
+  [48, 55, 60], // INFINITY        C3 G3 C4
 ];
 
-const VOICE_GAIN = [0.1, 0.074, 0.055, 0.044, 0.031, 0.023, 0.017, 0.012];
-const VOICE_DETUNE = [-4, 3, -2, 5, -6, 2, -3, 4]; // cents — width, not beating
-const VOICE_PAN = [-0.26, 0.22, -0.54, 0.5, -0.76, 0.7, -0.34, 0.36];
-const PING_NOTES = [587.33, 783.99, 880.0, 1174.66, 1396.91];
+/* Formants are integer multiples of the chord root. Inharmonic resonances
+   are the usual reason a pad feels "wrong" without anyone being able to name
+   it — tuning them to the harmony makes the noise read as a resonant body. */
+const FORMANT_MULT = [2, 3, 4, 6];
+const FORMANT_GAIN = [0.5, 0.34, 0.22, 0.12];
+
+const DENSITY = {
+  sparse: { pad: 0.8, breath: 0.75, air: 0.7, packet: [11, 20], ping: [16, 30] },
+  studio: { pad: 1.0, breath: 1.0, air: 1.0, packet: [7, 14], ping: [12, 22] },
+  dense: { pad: 1.1, breath: 1.25, air: 1.3, packet: [3.5, 8], ping: [7, 13] },
+};
 
 export class Drone {
-  constructor(injectedContext) {
+  constructor(opts) {
+    const o = opts && typeof opts.createGain === 'function' ? { context: opts } : opts || {};
+    this.injected = o.context || null;
+    this.density = DENSITY[o.density] ? o.density : 'studio';
+    this.mix = DENSITY[this.density];
+
     this.ctx = null;
-    this.injected = injectedContext || null;
     this.on = false;
     this.depth = 0;
     this.vel = 0;
-    this.chordIndex = 0;
+    this.stateIndex = 0;
     this.primed = false;
-    this.tickCount = 0;
-    this.tickPeriod = 1.5;
-    this.nextTick = 0;
+    this.nextPacket = 0;
     this.nextPing = 0;
+    this.nextSub = 0;
     this._lastBurst = -1;
 
     if (typeof document !== 'undefined') {
@@ -59,22 +77,17 @@ export class Drone {
 
   /* ── material ─────────────────────────────────────────────── */
 
-  _noiseBuffer(ctx, seconds) {
+  _white(ctx, seconds) {
     const len = Math.floor(ctx.sampleRate * seconds);
     const buf = ctx.createBuffer(2, len, ctx.sampleRate);
     for (let c = 0; c < 2; c++) {
       const d = buf.getChannelData(c);
-      // brown-ish: integration rolls off the top so noise never reads as hiss
-      let last = 0;
-      for (let i = 0; i < len; i++) {
-        last = (last + (Math.random() * 2 - 1) * 0.08) * 0.995;
-        d[i] = last;
-      }
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     }
     return buf;
   }
 
-  /** dark, decorrelated room tail */
+  /** dark, decorrelated tail */
   _impulse(ctx, seconds) {
     const len = Math.floor(ctx.sampleRate * seconds);
     const buf = ctx.createBuffer(2, len, ctx.sampleRate);
@@ -83,8 +96,8 @@ export class Drone {
       let lp = 0;
       for (let i = 0; i < len; i++) {
         const t = i / len;
-        lp += ((Math.random() * 2 - 1) - lp) * 0.24; // one-pole LP → dark tail
-        d[i] = lp * Math.pow(1 - t, 3.1);
+        lp += (Math.random() * 2 - 1 - lp) * 0.26;
+        d[i] = lp * Math.pow(1 - t, 2.8);
       }
     }
     return buf;
@@ -108,223 +121,282 @@ export class Drone {
     const ctx = this.injected || new Ctx();
     this.ctx = ctx;
 
-    /* master: everything is summed before the fade, so mute is absolute */
+    /* master: everything sums before the fade, so mute is absolute */
+    const bus = ctx.createGain();
+    bus.gain.value = 0.86;
+
     const tone = ctx.createBiquadFilter();
     tone.type = 'lowpass';
-    tone.frequency.value = 5200; // kills digital fizz above the useful band
-    tone.Q.value = 0.4;
+    tone.frequency.value = 7200;
+    tone.Q.value = 0.5;
 
     const master = ctx.createGain();
     master.gain.value = 0.0001;
-    this.master = master;
 
     const hp = ctx.createBiquadFilter();
     hp.type = 'highpass';
-    hp.frequency.value = 27; // no sub-rumble turned into speaker excursion
+    hp.frequency.value = 24;
     hp.Q.value = 0.6;
 
     const glue = ctx.createDynamicsCompressor();
-    glue.threshold.value = -26;
-    glue.knee.value = 26;
-    glue.ratio.value = 3.2;
-    glue.attack.value = 0.012;
-    glue.release.value = 0.34;
+    glue.threshold.value = -24;
+    glue.knee.value = 30;
+    glue.ratio.value = 3;
+    glue.attack.value = 0.015;
+    glue.release.value = 0.38;
 
     const out = ctx.createGain();
     out.gain.value = 0.9;
 
-    tone.connect(master).connect(hp).connect(glue).connect(out).connect(ctx.destination);
+    bus.connect(tone).connect(master).connect(hp).connect(glue).connect(out).connect(ctx.destination);
 
-    /* dark room, fed post-filter so the tail stays soft */
+    /* very slow swell so the whole bed breathes over ~50 s */
+    const swell = ctx.createOscillator();
+    swell.frequency.value = 0.019;
+    const swellG = ctx.createGain();
+    swellG.gain.value = 0.13;
+    swell.connect(swellG).connect(bus.gain);
+    swell.start();
+
+    /* room */
     const verb = ctx.createConvolver();
-    verb.buffer = this._impulse(ctx, 4.6);
+    verb.buffer = this._impulse(ctx, 4.2);
     const verbOut = ctx.createGain();
-    verbOut.gain.value = 0.46;
+    verbOut.gain.value = 0.5;
     verb.connect(verbOut).connect(tone);
 
     const dry = ctx.createGain();
     dry.gain.value = 1;
-    dry.connect(tone);
+    dry.connect(bus);
 
     const fxSend = ctx.createGain();
-    fxSend.gain.value = 0.5;
+    fxSend.gain.value = 0.55;
     fxSend.connect(verb);
 
+    this.bus = bus;
     this.tone = tone;
+    this.master = master;
     this.dry = dry;
     this.verb = verb;
     this.fxSend = fxSend;
 
-    /* ── additive chord ──
-       eight voices retuned across the states; each breathes on its own very
-       slow LFO so the harmony never sits still and never phase-locks */
-    const padFilter = ctx.createBiquadFilter();
-    padFilter.type = 'lowpass';
-    padFilter.frequency.value = 760;
-    padFilter.Q.value = 0.7;
-    padFilter.connect(dry);
+    /* ── DRIFT — nine detuned saws, two poles of filtration ──
+       A saw through a resonant low-pass is the cheapest way to sound
+       expensive: the harmonics give the ear a pitch to hold on to, the
+       resonance gives it a vowel. Three detuned copies per note produce
+       the slow chorusing drift that a single oscillator can't. */
+    const sawBus = ctx.createGain();
+    sawBus.gain.value = 0.115 * this.mix.pad; // pre-compensated for the 5 dB sat gain
 
-    const padSend = ctx.createGain();
-    padSend.gain.value = 0.32;
-    padFilter.connect(padSend).connect(verb);
-    this.padFilter = padFilter;
+    /* tape-style saturation: a tanh curve rounds the saws and adds the
+       harmonics that make an analog stack sound like it has mass */
+    const sat = ctx.createWaveShaper();
+    const curve = new Float32Array(1024);
+    for (let i = 0; i < 1024; i++) {
+      const x = (i / 1023) * 2 - 1;
+      curve[i] = Math.tanh(x * 1.7) / Math.tanh(1.7);
+    }
+    sat.curve = curve;
+    sat.oversample = '2x';
 
-    this.voices = [];
-    for (let i = 0; i < 8; i++) {
-      const o = ctx.createOscillator();
-      o.type = i >= 5 ? 'sine' : i >= 1 ? 'triangle' : 'sine';
-      o.frequency.value = mtof(CHORDS[0][i]);
-      o.detune.value = VOICE_DETUNE[i];
+    const lp1 = ctx.createBiquadFilter();
+    lp1.type = 'lowpass';
+    lp1.frequency.value = 640;
+    lp1.Q.value = 3.4;
+
+    const lp2 = ctx.createBiquadFilter();
+    lp2.type = 'lowpass';
+    lp2.frequency.value = 2700;
+    lp2.Q.value = 0.8;
+
+    sawBus.connect(sat).connect(lp1).connect(lp2).connect(dry);
+    const sawSend = ctx.createGain();
+    sawSend.gain.value = 0.18;
+    lp2.connect(sawSend).connect(verb);
+
+    const cutLfo = ctx.createOscillator();
+    cutLfo.frequency.value = 0.033;
+    const cutLfoG = ctx.createGain();
+    cutLfoG.gain.value = 165;
+    cutLfo.connect(cutLfoG).connect(lp1.frequency);
+    cutLfo.start();
+
+    const cutLfo2 = ctx.createOscillator();
+    cutLfo2.frequency.value = 0.0092;
+    const cutLfo2G = ctx.createGain();
+    cutLfo2G.gain.value = 90;
+    cutLfo2.connect(cutLfo2G).connect(lp1.frequency);
+    cutLfo2.start();
+
+    const DETUNE = [-7, 0, 6];
+    this.saws = [];
+    for (let n = 0; n < 3; n++) {
+      for (let d = 0; d < 3; d++) {
+        const o = ctx.createOscillator();
+        o.type = 'sawtooth';
+        o.frequency.value = mtof(TONES[0][n]);
+        o.detune.value = DETUNE[d] + n * 1.5;
+
+        const g = ctx.createGain();
+        g.gain.value = 0.34;
+
+        /* each saw drifts on its own phase, so nothing ever locks */
+        const dl = ctx.createOscillator();
+        dl.type = 'sine';
+        dl.frequency.value = 0.011 + Math.random() * 0.026;
+        const dg = ctx.createGain();
+        dg.gain.value = 3.5 + Math.random() * 2;
+        dl.connect(dg).connect(o.detune);
+        dl.start();
+
+        const p = this._pan(ctx, (n - 1) * 0.35 + (d - 1) * 0.28);
+        o.connect(g).connect(p).connect(sawBus);
+        o.start();
+        this.saws.push({ o, n });
+      }
+    }
+    this.lp1 = lp1;
+
+    /* ── BREATH — noise through a formant bank ──
+       Four high-Q resonances trace a vowel. Sweeping them slowly turns
+       filtered noise into something closer to a voice than to wind. */
+    const src = ctx.createBufferSource();
+    src.buffer = this._white(ctx, 5);
+    src.loop = true;
+
+    const breathBus = ctx.createGain();
+    breathBus.gain.value = 0.075 * this.mix.breath;
+    breathBus.connect(dry);
+    const breathSend = ctx.createGain();
+    breathSend.gain.value = 0.5;
+    breathBus.connect(breathSend).connect(verb);
+
+    this.formants = [];
+    FORMANT_MULT.forEach((mult, i) => {
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = mtof(TONES[0][0]) * mult;
+      bp.Q.value = 11;
 
       const g = ctx.createGain();
-      const base = VOICE_GAIN[i];
-      g.gain.value = base * 0.72;
+      g.gain.value = FORMANT_GAIN[i];
 
-      const lfo = ctx.createOscillator();
-      lfo.type = 'sine';
-      lfo.frequency.value = 0.019 + i * 0.0113;
-      const lfoG = ctx.createGain();
-      lfoG.gain.value = base * 0.28;
-      lfo.connect(lfoG).connect(g.gain);
-      lfo.start();
+      const fl = ctx.createOscillator();
+      fl.type = 'sine';
+      fl.frequency.value = 0.014 + i * 0.0073;
+      const fg = ctx.createGain();
+      fg.gain.value = (12 + i * 4) * 2;
+      fl.connect(fg).connect(bp.frequency);
+      fl.start();
 
-      const pan = this._pan(ctx, VOICE_PAN[i]);
-      o.connect(g).connect(pan).connect(padFilter);
-      o.start();
+      src.connect(bp).connect(g).connect(breathBus);
+      this.formants.push({ bp, mult });
+    });
+    src.start();
 
-      this.voices.push({ o, g, lfoG });
-    }
-
-    /* ── machine air ── one narrow band, swept slowly; deliberately quiet */
-    const air = ctx.createBufferSource();
-    air.buffer = this._noiseBuffer(ctx, 5);
-    air.loop = true;
-
+    /* ── AIR — one narrow band, velocity-driven, never broadband ── */
     const airBP = ctx.createBiquadFilter();
     airBP.type = 'bandpass';
-    airBP.frequency.value = 1340;
-    airBP.Q.value = 9;
-
+    airBP.frequency.value = 2600;
+    airBP.Q.value = 7;
     const airG = ctx.createGain();
-    airG.gain.value = 0.022;
-
-    air.connect(airBP).connect(airG).connect(dry);
-
-    const air2G = ctx.createGain();
-    air2G.gain.value = 0.007;
-    const airBP2 = ctx.createBiquadFilter();
-    airBP2.type = 'bandpass';
-    airBP2.frequency.value = 3150;
-    airBP2.Q.value = 12;
-    air.connect(airBP2).connect(air2G).connect(dry);
-
-    const airLfo = ctx.createOscillator();
-    airLfo.type = 'sine';
-    airLfo.frequency.value = 0.017;
-    const airLfoG = ctx.createGain();
-    airLfoG.gain.value = 110;
-    airLfo.connect(airLfoG).connect(airBP.frequency);
-    airLfo.start();
-    air.start();
-
+    airG.gain.value = 0.014 * this.mix.air;
+    src.connect(airBP).connect(airG).connect(dry);
     this.airBP = airBP;
     this.airG = airG;
-    this.noiseBuffer = air.buffer;
 
-    this.nextTick = ctx.currentTime + 0.6;
-    this.nextPing = ctx.currentTime + 5;
+    this.noiseBuffer = src.buffer;
+    this.nextPacket = ctx.currentTime + 1.2;
+    this.nextPing = ctx.currentTime + 4;
+    this.nextSub = ctx.currentTime + 2;
   }
 
   /* ── events ───────────────────────────────────────────────── */
 
-  /** telemetry tick — the machine counting */
-  _tick(t) {
+  /** a packet of chirps — data arriving, not a clock ticking */
+  _packet(t) {
     const ctx = this.ctx;
-    const i = this.tickCount++;
-    const f = 1560 + Math.random() * 280;
+    const n = 3 + ((Math.random() * 4) | 0);
+    let at = t;
 
-    const o = ctx.createOscillator();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(f, t);
-    o.frequency.exponentialRampToValueAtTime(f * 0.72, t + 0.06);
+    for (let i = 0; i < n; i++) {
+      const f = rnd(1500, 3400);
+      const o = ctx.createOscillator();
+      o.type = i % 3 === 2 ? 'triangle' : 'sine';
+      o.frequency.setValueAtTime(f, at);
+      o.frequency.exponentialRampToValueAtTime(f * rnd(0.55, 0.72), at + 0.045);
 
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.022, t + 0.003);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+      const g = ctx.createGain();
+      const amp = 0.023 * this.mix.air * (1 - i / (n + 2));
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(amp, at + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + 0.07);
 
-    const p = this._pan(ctx, (i % 2 ? 1 : -1) * (0.16 + Math.random() * 0.22));
-    o.connect(g).connect(p).connect(this.dry);
-    p.connect(this.fxSend);
-    o.start(t);
-    o.stop(t + 0.12);
+      const p = this._pan(ctx, i % 2 ? 0.55 : -0.55);
+      o.connect(g).connect(p).connect(this.dry);
+      p.connect(this.fxSend);
 
-    /* every fourth tick: a soft reactor thump underneath */
-    if (i % 4 === 0) {
-      const s = ctx.createOscillator();
-      s.type = 'sine';
-      s.frequency.setValueAtTime(76, t);
-      s.frequency.exponentialRampToValueAtTime(47, t + 0.4);
-      const sg = ctx.createGain();
-      sg.gain.setValueAtTime(0.0001, t);
-      sg.gain.exponentialRampToValueAtTime(0.042, t + 0.014);
-      sg.gain.exponentialRampToValueAtTime(0.0001, t + 0.85);
-      s.connect(sg).connect(this._pan(ctx, 0)).connect(this.dry);
-      s.start(t);
-      s.stop(t + 0.9);
-    }
-
-    /* every eighth: a lower frame tick, half an octave down */
-    if (i % 8 === 4) {
-      const l = ctx.createOscillator();
-      l.type = 'sine';
-      l.frequency.setValueAtTime(784, t);
-      const lg = ctx.createGain();
-      lg.gain.setValueAtTime(0.0001, t);
-      lg.gain.exponentialRampToValueAtTime(0.017, t + 0.004);
-      lg.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
-      l.connect(lg).connect(this._pan(ctx, 0.1)).connect(this.dry);
-      l.start(t);
-      l.stop(t + 0.2);
+      o.start(at);
+      o.stop(at + 0.09);
+      at += rnd(0.048, 0.115);
     }
   }
 
-  /** FM instrument ping — inharmonic, glassy, long dark tail */
+  /** an irregular sub impact — weight without a beat */
+  _sub(t) {
+    const ctx = this.ctx;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    const f0 = rnd(58, 74);
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(f0 * 0.55, t + 0.7);
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.085, t + 0.045);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.9);
+
+    o.connect(g).connect(this.dry);
+    o.start(t);
+    o.stop(t + 2);
+  }
+
+  /** FM instrument ping — inharmonic, glassy, long tail */
   _ping(t) {
     const ctx = this.ctx;
-    const base = PING_NOTES[(Math.random() * PING_NOTES.length) | 0];
-    const f = Math.random() < 0.24 ? base * 0.5 : base;
+    const notes = TONES[this.stateIndex];
+    const base = mtof(notes[(Math.random() * 3) | 0] + 24);
     const ratio = Math.random() < 0.5 ? 3.5 : 2.76;
 
     const car = ctx.createOscillator();
     car.type = 'sine';
-    car.frequency.value = f;
+    car.frequency.value = base;
 
     const mod = ctx.createOscillator();
     mod.type = 'sine';
-    mod.frequency.value = f * ratio;
+    mod.frequency.value = base * ratio;
 
     const modG = ctx.createGain();
-    modG.gain.setValueAtTime(f * 1.15, t);
-    modG.gain.exponentialRampToValueAtTime(f * 0.008, t + 1.7);
+    modG.gain.setValueAtTime(base * 1.2, t);
+    modG.gain.exponentialRampToValueAtTime(base * 0.006, t + 1.9);
     mod.connect(modG).connect(car.frequency);
 
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.05, t + 0.008);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 2.2);
+    g.gain.exponentialRampToValueAtTime(0.042 * this.mix.breath, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 2.6);
 
-    const p = this._pan(ctx, Math.random() * 1.5 - 0.75);
+    const p = this._pan(ctx, rnd(-0.8, 0.8));
     car.connect(g).connect(p).connect(this.dry);
     p.connect(this.fxSend);
 
     car.start(t);
-    car.stop(t + 2.3);
+    car.stop(t + 2.7);
     mod.start(t);
-    mod.stop(t + 2.3);
+    mod.stop(t + 2.7);
   }
 
-  /** state change — a narrow band sweeping up, like a system re-indexing */
+  /** state change — a band sweeping up, like a system re-indexing */
   _scan(t) {
     const ctx = this.ctx;
     const src = ctx.createBufferSource();
@@ -333,19 +405,19 @@ export class Drone {
 
     const bp = ctx.createBiquadFilter();
     bp.type = 'bandpass';
-    bp.Q.value = 14;
-    bp.frequency.setValueAtTime(420, t);
-    bp.frequency.exponentialRampToValueAtTime(3400, t + 0.28);
+    bp.Q.value = 11;
+    bp.frequency.setValueAtTime(500, t);
+    bp.frequency.exponentialRampToValueAtTime(4200, t + 0.34);
 
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.032, t + 0.05);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.36);
+    g.gain.exponentialRampToValueAtTime(0.03, t + 0.06);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
 
     src.connect(bp).connect(g).connect(this.dry);
     g.connect(this.fxSend);
     src.start(t);
-    src.stop(t + 0.38);
+    src.stop(t + 0.44);
   }
 
   /* ── scheduler ────────────────────────────────────────────── */
@@ -353,18 +425,24 @@ export class Drone {
   _schedule() {
     if (!this.ctx || !this.on) return;
     const now = this.ctx.currentTime;
-    const horizon = now + 0.45;
+    const horizon = now + 0.5;
 
-    if (this.nextTick < now) this.nextTick = now + 0.05;
-    while (this.nextTick < horizon) {
-      this._tick(this.nextTick);
-      this.nextTick += this.tickPeriod * (0.93 + Math.random() * 0.14);
+    if (this.nextPacket < now) this.nextPacket = now + 0.4;
+    while (this.nextPacket < horizon) {
+      this._packet(this.nextPacket);
+      this.nextPacket += rnd(this.mix.packet[0], this.mix.packet[1]);
     }
 
     if (this.nextPing < now) this.nextPing = now + 3;
     while (this.nextPing < horizon) {
       this._ping(this.nextPing);
-      this.nextPing += 9 + Math.random() * 10;
+      this.nextPing += rnd(this.mix.ping[0], this.mix.ping[1]);
+    }
+
+    if (this.nextSub < now) this.nextSub = now + 2;
+    while (this.nextSub < horizon) {
+      this._sub(this.nextSub);
+      this.nextSub += rnd(3.4, 6.8);
     }
   }
 
@@ -381,40 +459,43 @@ export class Drone {
     g.setValueAtTime(Math.max(0.0001, g.value), now);
 
     if (this.on) {
-      // linear bloom — an exponential ramp from silence is inaudible for a
+      // linear bloom — an exponential ramp from silence is silent for a
       // second and then arrives all at once
-      g.linearRampToValueAtTime(0.42, now + 2.4);
-      if (this.nextTick < now) this.nextTick = now + 0.7;
-      if (this.nextPing < now) this.nextPing = now + 6;
-      if (!this._timer) this._timer = setInterval(() => this._schedule(), 180);
+      g.linearRampToValueAtTime(0.46, now + 2.4);
+      if (this.nextPacket < now) this.nextPacket = now + 1.4;
+      if (this.nextPing < now) this.nextPing = now + 5;
+      if (this.nextSub < now) this.nextSub = now + 2.4;
+      if (!this._timer) this._timer = setInterval(() => this._schedule(), 200);
     } else {
-      g.exponentialRampToValueAtTime(0.0001, now + 1.0);
+      g.exponentialRampToValueAtTime(0.0001, now + 1.1);
     }
     return this.on;
   }
 
-  /** chord + timbre follow the five states */
+  /** harmony + timbre follow the five states */
   setState(s) {
     this.depth = clamp(s / 4, 0, 1);
-    this.tickPeriod = 1.5 - this.depth * 0.34;
     if (!this.ctx) return;
 
     const idx = clamp(Math.round(s), 0, 4);
-    if (idx === this.chordIndex && this.primed) return;
-    this.chordIndex = idx;
+    if (idx === this.stateIndex && this.primed) return;
 
     const now = this.ctx.currentTime;
-    const notes = CHORDS[idx];
-    const lift = 0.86 + this.depth * 0.26;
+    const prev = this.stateIndex;
+    this.stateIndex = idx;
 
-    this.voices.forEach((v, k) => {
-      v.o.frequency.setTargetAtTime(mtof(notes[k]), now, 1.15);
-      v.g.gain.setTargetAtTime(VOICE_GAIN[k] * 0.72 * lift, now, 1.35);
-      v.lfoG.gain.setTargetAtTime(VOICE_GAIN[k] * 0.28 * lift, now, 1.35);
+    const notes = TONES[idx];
+    for (const { o, n } of this.saws) {
+      o.frequency.setTargetAtTime(mtof(notes[n]), now, 0.9);
+    }
+
+    const root = mtof(TONES[idx][0]);
+    this.formants.forEach(({ bp, mult }) => {
+      bp.frequency.setTargetAtTime(root * mult, now, 1.3);
     });
 
-    this.padFilter.frequency.setTargetAtTime(700 + this.depth * 560, now, 1.6);
-    this.tone.frequency.setTargetAtTime(4600 + this.depth * 2400, now, 2.0);
+    this.lp1.frequency.setTargetAtTime(620 + this.depth * 420, now, 1.5);
+    this.tone.frequency.setTargetAtTime(7000 + this.depth * 2200, now, 2.0);
 
     if (this.primed && this.on) this._scan(now + 0.02);
     this.primed = true;
@@ -426,11 +507,11 @@ export class Drone {
     if (Math.abs(v - this.vel) < 0.02) return;
     this.vel = v;
     const now = this.ctx.currentTime;
-    this.airG.gain.setTargetAtTime(0.02 + v * 0.026, now, 0.4);
-    this.airBP.frequency.setTargetAtTime(1300 + v * 820, now, 0.5);
+    this.airG.gain.setTargetAtTime((0.012 + v * 0.02) * this.mix.air, now, 0.4);
+    this.airBP.frequency.setTargetAtTime(2600 + v * 1400, now, 0.5);
   }
 
-  /** a pulse leaving the field — routed through master, never around it */
+  /** a pulse leaving the field — impact + breath, never a beep */
   burst(pan = 0) {
     if (!this.on || !this.ctx) return;
     const ctx = this.ctx;
@@ -438,34 +519,39 @@ export class Drone {
     if (now - this._lastBurst < 0.06) return;
     this._lastBurst = now;
 
+    const p = this._pan(ctx, clamp(pan, -1, 1) * 0.65);
+
+    /* body: a low sine collapsing fast */
     const o = ctx.createOscillator();
     o.type = 'sine';
-    o.frequency.setValueAtTime(1320, now);
-    o.frequency.exponentialRampToValueAtTime(330, now + 0.15);
+    o.frequency.setValueAtTime(220, now);
+    o.frequency.exponentialRampToValueAtTime(48, now + 0.28);
 
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, now);
-    g.gain.exponentialRampToValueAtTime(0.075, now + 0.005);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
-
-    const p = this._pan(ctx, clamp(pan, -1, 1) * 0.7);
-    o.connect(g).connect(p).connect(this.dry);
-    p.connect(this.fxSend);
+    g.gain.exponentialRampToValueAtTime(0.085, now + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+    o.connect(g).connect(p);
     o.start(now);
-    o.stop(now + 0.26);
+    o.stop(now + 0.6);
 
-    /* 20 ms transient so the pulse has an edge rather than a whoosh */
+    /* edge: a narrow band collapsing downward — air being displaced */
     const n = ctx.createBufferSource();
     n.buffer = this.noiseBuffer;
-    const hp = ctx.createBiquadFilter();
-    hp.type = 'highpass';
-    hp.frequency.value = 2400;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 4;
+    bp.frequency.setValueAtTime(3800, now);
+    bp.frequency.exponentialRampToValueAtTime(700, now + 0.3);
     const ng = ctx.createGain();
     ng.gain.setValueAtTime(0.0001, now);
-    ng.gain.exponentialRampToValueAtTime(0.02, now + 0.003);
-    ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
-    n.connect(hp).connect(ng).connect(p);
+    ng.gain.exponentialRampToValueAtTime(0.05, now + 0.012);
+    ng.gain.exponentialRampToValueAtTime(0.0001, now + 0.34);
+    n.connect(bp).connect(ng).connect(p);
     n.start(now, Math.random() * 2);
-    n.stop(now + 0.05);
+    n.stop(now + 0.36);
+
+    p.connect(this.dry);
+    p.connect(this.fxSend);
   }
 }
