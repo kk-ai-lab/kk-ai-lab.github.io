@@ -163,6 +163,9 @@ async function runBoot() {
   revealStart = performance.now();
   started = true;
 
+  /* the title card pulls into focus, one line after the other */
+  $$('.hero__line').forEach((el, i) => setTimeout(() => settle(el), 420 + i * 320));
+
   setTimeout(() => boot.remove(), 1250);
 }
 
@@ -308,32 +311,12 @@ window.addEventListener('pointerup', () => {
 });
 window.addEventListener('pointercancel', endGesture);
 
-/* ── terminal scramble: characters resolve out of noise ── */
-const GLYPHS = '01<>[]{}/\\#$%&*+=~_';
-
-function scramble(el) {
-  if (!el || el.__scrambling) return;
-  const target = el.dataset.txt || el.textContent;
-  el.dataset.txt = target;
-  el.__scrambling = true;
-  const t0 = performance.now();
-  const dur = 620;
-  const tick = (now) => {
-    const t = Math.min((now - t0) / dur, 1);
-    const reveal = Math.floor(t * (target.length + 4));
-    let out = '';
-    for (let i = 0; i < target.length; i++) {
-      const ch = target[i];
-      out += ch === ' ' ? ' ' : i < reveal ? ch : GLYPHS[(Math.random() * GLYPHS.length) | 0];
-    }
-    el.textContent = out;
-    if (t < 1) requestAnimationFrame(tick);
-    else {
-      el.textContent = target;
-      el.__scrambling = false;
-    }
-  };
-  requestAnimationFrame(tick);
+/* ── entrance: type arrives over-tracked and out of focus, then pulls in ── */
+function settle(el) {
+  if (!el) return;
+  el.classList.remove('is-settled');
+  void el.offsetWidth; // restart the animation
+  el.classList.add('is-settled');
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -516,7 +499,7 @@ function frame(now) {
         if (op > 0.55 && !blockEl.__shown) {
           blockEl.__shown = true;
           const t = blockEl.querySelector('.title, .manifest__title, .end__mark');
-          if (t) scramble(t);
+          if (t) settle(t);
         } else if (op < 0.08) {
           blockEl.__shown = false;
         }
@@ -528,7 +511,7 @@ function frame(now) {
         }
       }
       for (const el of reveals) {
-        const rp = elapsed <= 0 ? 0 : easeOut(clamp((elapsed - el.__delay) / 860, 0, 1));
+        const rp = elapsed <= 0 ? 0 : easeOut(clamp((elapsed - el.__delay) / 1150, 0, 1));
         const alpha = op * rp;
 
         if (el.__lastA === undefined || Math.abs(el.__lastA - alpha) > 0.002) {
@@ -558,7 +541,7 @@ function frame(now) {
 
   /* chrome outside the chapters reveals once, independent of scroll */
   for (const el of globalReveals) {
-    const rp = elapsed <= 0 ? 0 : easeOut(clamp((elapsed - el.__delay) / 860, 0, 1));
+    const rp = elapsed <= 0 ? 0 : easeOut(clamp((elapsed - el.__delay) / 1150, 0, 1));
     const alpha = rp;
     if (el.__lastA === undefined || Math.abs(el.__lastA - alpha) > 0.002) {
       el.style.opacity = alpha.toFixed(3);

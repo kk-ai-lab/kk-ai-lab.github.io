@@ -19,21 +19,26 @@
 }
 
 :root {
-  --void: #050609;
-  --paper: #eef0f5;
-  --paper-dim: rgba(238, 240, 245, 0.68);
-  --paper-mute: rgba(238, 240, 245, 0.4);
-  --hair: rgba(238, 240, 245, 0.17);
-  --hair-soft: rgba(238, 240, 245, 0.075);
-  --amber: #ff9a57;
-  --amber-dim: rgba(255, 154, 87, 0.6);
-  --cyan: #8ad2ff;
+  --void: #04060a;
+  --paper: #f2f5fa;
+  --paper-dim: rgba(242, 245, 250, 0.6);
+  --paper-mute: rgba(242, 245, 250, 0.33);
+  --hair: rgba(196, 216, 240, 0.15);
+  --hair-soft: rgba(196, 216, 240, 0.06);
+  /* one warm accent, used sparingly — the cockpit light, not the default */
+  --amber: #e0b184;
+  --amber-dim: rgba(224, 177, 132, 0.55);
+  --cyan: #bcd6ee;
 
-  --display: 'VT323', 'Courier New', monospace;
+  --display: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
-  --gutter: clamp(20px, 4.2vw, 64px);
-  --ease: cubic-bezier(0.19, 1, 0.22, 1);
+  /* wide tracking is the whole typographic idea: monumental, not dense */
+  --trk-display: 0.13em;
+  --trk-title: 0.16em;
+
+  --gutter: clamp(24px, 5.2vw, 80px);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -103,33 +108,18 @@ dl { margin: 0; }
   background: radial-gradient(125% 105% at 50% 50%, transparent 46%, rgba(2, 3, 5, 0.62) 100%);
 }
 
-/* CRT: scanlines + a slow refresh band */
+/* Anamorphic lift: a very faint horizontal smear across the upper third.
+   This replaces the old CRT scanlines — the frame should feel photographed,
+   not displayed. */
 .crt {
   position: fixed;
   inset: 0;
   z-index: 66;
   pointer-events: none;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.55) 0px,
-    rgba(0, 0, 0, 0.55) 1px,
-    rgba(0, 0, 0, 0) 1px,
-    rgba(0, 0, 0, 0) 3px
-  );
-  opacity: 0.27;
-}
-.crt::after {
-  content: '';
-  position: absolute;
-  left: 0; right: 0;
-  height: 26%;
-  top: -30%;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, rgba(200, 225, 255, 0.035) 50%, rgba(255, 255, 255, 0) 100%);
-  animation: crtSweep 9s linear infinite;
-}
-@keyframes crtSweep {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(500%); }
+  background:
+    radial-gradient(60% 22% at 50% 18%, rgba(150, 190, 235, 0.05), transparent 70%),
+    radial-gradient(90% 40% at 50% 0%, rgba(190, 215, 245, 0.035), transparent 72%);
+  mix-blend-mode: screen;
 }
 
 .grain {
@@ -175,18 +165,18 @@ dl { margin: 0; }
 
 .caret {
   display: inline-block;
-  width: 0.55em;
-  height: 0.92em;
-  margin-left: 0.22em;
-  vertical-align: -0.1em;
-  background: var(--amber);
-  animation: blink 1.05s steps(1) infinite;
-  opacity: 0.9;
+  width: 1px;
+  height: 1em;
+  margin-left: 0.3em;
+  vertical-align: -0.14em;
+  background: var(--paper);
+  animation: blink 2.4s steps(1) infinite;
+  opacity: 0.5;
 }
-.caret--live { background: var(--paper); }
+.caret--live { background: var(--amber); opacity: 0.7; }
 @keyframes blink {
-  0%, 49% { opacity: 0.9; }
-  50%, 100% { opacity: 0; }
+  0%, 62% { opacity: 0.5; }
+  63%, 100% { opacity: 0.06; }
 }
 
 /* ── HUD ───────────────────────────────────────────────── */
@@ -305,11 +295,13 @@ dl { margin: 0; }
 
 .rail__title {
   color: var(--paper-mute);
-  opacity: 0.5;
-  margin-bottom: 2px;
+  opacity: 0.8;
+  margin-bottom: 4px;
+  letter-spacing: 0.3em;
+  font-size: 8px;
 }
 
-.rail__list { list-style: none; display: flex; flex-direction: column; gap: 13px; align-items: flex-end; }
+.rail__list { list-style: none; display: flex; flex-direction: column; gap: 18px; align-items: flex-end; }
 
 .rail__list a {
   display: grid;
@@ -333,10 +325,10 @@ dl { margin: 0; }
 
 .rail__line {
   display: block;
-  width: 10px;
+  width: 14px;
   height: 1px;
-  background: var(--hair);
-  transition: width 0.55s var(--ease), background 0.45s var(--ease);
+  background: rgba(196, 216, 240, 0.26);
+  transition: width 0.7s var(--ease), background 0.5s var(--ease);
 }
 
 .rail__num { font-size: 9px; opacity: 0.75; transition: opacity 0.4s var(--ease); }
@@ -373,7 +365,7 @@ dl { margin: 0; }
   position: absolute;
   left: var(--gutter);
   bottom: clamp(92px, 14vh, 150px);
-  width: min(460px, 86vw);
+  width: min(500px, 88vw);
 }
 
 /* ── cover ─────────────────────────────────────────────── */
@@ -399,22 +391,22 @@ dl { margin: 0; }
 
 .hero__title {
   font-family: var(--display);
-  font-weight: 400;
-  font-size: clamp(3.6rem, 12.4vw, 11.5rem);
-  line-height: 0.84;
-  letter-spacing: 0.005em;
+  font-weight: 200;
+  font-size: clamp(2.5rem, 8.1vw, 8rem);
+  line-height: 1.0;
+  letter-spacing: var(--trk-display);
   text-transform: uppercase;
   display: flex;
   flex-direction: column;
   color: #f7f9fc;
-  text-shadow: 0 0 34px rgba(150, 195, 255, 0.18), 0 0 2px rgba(255, 255, 255, 0.4);
+  text-shadow: 0 0 60px rgba(150, 195, 255, 0.22), 0 0 2px rgba(255, 255, 255, 0.35);
 }
 
 .hero__line { display: block; will-change: transform, opacity; }
 
 .hero__line--b {
   color: var(--amber);
-  text-shadow: 0 0 34px rgba(255, 154, 87, 0.28), 0 0 2px rgba(255, 200, 160, 0.5);
+  text-shadow: 0 0 60px rgba(224, 177, 132, 0.3), 0 0 2px rgba(255, 220, 190, 0.45);
 }
 
 .hero__lede {
@@ -490,14 +482,14 @@ dl { margin: 0; }
 
 .manifest__title {
   font-family: var(--display);
-  font-weight: 400;
-  font-size: clamp(2.4rem, 5.4vw, 4.8rem);
-  line-height: 0.9;
-  letter-spacing: 0.005em;
+  font-weight: 200;
+  font-size: clamp(1.7rem, 3.8vw, 3.1rem);
+  line-height: 1.16;
+  letter-spacing: var(--trk-title);
   text-transform: uppercase;
   color: #f4f7fc;
-  margin-bottom: clamp(10px, 1.8vh, 16px);
-  text-shadow: 0 0 26px rgba(150, 195, 255, 0.16);
+  margin-bottom: clamp(12px, 2vh, 18px);
+  text-shadow: 0 0 40px rgba(150, 195, 255, 0.18);
 }
 
 .manifest__list { list-style: none; margin-top: clamp(14px, 2.4vh, 22px); border-top: 1px solid var(--hair); }
@@ -514,13 +506,13 @@ dl { margin: 0; }
 .manifest__list a:hover { color: var(--paper); padding-left: 6px; border-color: var(--amber-dim); }
 
 .m-num { flex: none; width: 28px; color: var(--amber); font-size: 9px; letter-spacing: 0.08em; }
-.m-name { flex: none; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; }
+.m-name { flex: none; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; white-space: nowrap; }
 .m-desc {
   flex: 1 1 auto;
   min-width: 0;
   font-size: 10px;
-  letter-spacing: 0.02em;
-  color: var(--paper-mute);
+  letter-spacing: 0.06em;
+  color: rgba(242, 245, 250, 0.44);
   margin-left: 10px;
   white-space: nowrap;
   overflow: hidden;
@@ -531,7 +523,7 @@ dl { margin: 0; }
   margin-left: 10px;
   font-size: 9.5px;
   letter-spacing: 0.06em;
-  color: rgba(238, 240, 245, 0.8);
+  color: rgba(242, 245, 250, 0.82);
   font-variant-numeric: tabular-nums;
 }
 .manifest__list a:hover .m-val { color: var(--cyan); }
@@ -561,38 +553,39 @@ dl { margin: 0; }
 .index {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-family: var(--mono);
-  font-size: 8.5px;
-  letter-spacing: 0.16em;
+  font-size: 8px;
+  font-weight: 300;
+  letter-spacing: 0.3em;
   text-transform: uppercase;
   color: var(--paper-mute);
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
-.index .idx { color: var(--amber); letter-spacing: 0.08em; }
+.index .idx { color: var(--amber); letter-spacing: 0.14em; }
 
-/* the display face — CRT phosphor */
+/* the display face — thin, wide, monumental */
 .title {
   font-family: var(--display);
-  font-weight: 400;
-  font-size: clamp(2.6rem, 7.6vw, 6.6rem);
-  line-height: 0.86;
-  letter-spacing: 0.008em;
+  font-weight: 200;
+  font-size: clamp(1.85rem, 4.9vw, 4.1rem);
+  line-height: 1.06;
+  letter-spacing: var(--trk-title);
   text-transform: uppercase;
   color: #f6f8fc;
-  margin-bottom: clamp(10px, 1.8vh, 16px);
-  text-shadow: 0 0 30px rgba(150, 195, 255, 0.2), 0 0 2px rgba(255, 255, 255, 0.45);
+  margin-bottom: clamp(14px, 2.2vh, 20px);
+  text-shadow: 0 0 50px rgba(150, 195, 255, 0.24), 0 0 2px rgba(255, 255, 255, 0.4);
   will-change: transform, opacity;
 }
-.title--long { font-size: clamp(2.2rem, 6.4vw, 5.6rem); }
+.title--long { font-size: clamp(1.5rem, 3.9vw, 3.2rem); }
 
 .lede {
   font-family: var(--mono);
   font-weight: 300;
-  font-size: clamp(13px, 1.02vw, 14.5px);
-  line-height: 1.7;
-  letter-spacing: 0.01em;
-  color: rgba(238, 240, 245, 0.86);
+  font-size: clamp(12.5px, 0.95vw, 13.5px);
+  line-height: 1.95;
+  letter-spacing: 0.035em;
+  color: rgba(242, 245, 250, 0.8);
   max-width: 420px;
   margin-bottom: 6px;
   text-wrap: pretty;
@@ -698,11 +691,12 @@ dl { margin: 0; }
 .end__rule { width: 42px; height: 1px; background: var(--amber); opacity: 0.75; margin-bottom: 10px; }
 .end__mark {
   font-family: var(--display);
-  font-size: clamp(1.5rem, 2.4vw, 2.1rem);
-  letter-spacing: 0.06em;
+  font-weight: 200;
+  font-size: clamp(1.15rem, 1.9vw, 1.65rem);
+  letter-spacing: 0.26em;
   text-transform: uppercase;
   color: var(--paper);
-  text-shadow: 0 0 22px rgba(150, 195, 255, 0.2);
+  text-shadow: 0 0 40px rgba(150, 195, 255, 0.24);
 }
 .end__desc {
   font-family: var(--mono);
@@ -863,24 +857,30 @@ dl { margin: 0; }
 
 .boot__list {
   list-style: none;
-  margin-top: 14px;
+  margin-top: 18px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 7px;
   font-size: 8px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 .boot__list li {
   display: flex;
   align-items: baseline;
   gap: 12px;
   opacity: 0.16;
-  transition: opacity 0.35s var(--ease);
+  transition: opacity 0.6s var(--ease);
 }
 .boot__list li.is-on { opacity: 1; }
-.boot__list span { width: 74px; color: var(--paper-dim); }
-.boot__list b { font-weight: 400; color: var(--paper-mute); text-transform: none; letter-spacing: 0.04em; }
-.boot__list i { margin-left: auto; font-style: normal; color: var(--amber); opacity: 0.85; }
+.boot__list span { width: 84px; color: var(--paper-mute); }
+.boot__list i {
+  margin-left: auto;
+  font-style: normal;
+  color: var(--paper-dim);
+  text-transform: none;
+  letter-spacing: 0.04em;
+}
 
 .noscript {
   position: fixed; inset: 0; z-index: 500;
@@ -890,6 +890,21 @@ dl { margin: 0; }
 }
 
 .js [data-reveal] { opacity: 0; }
+
+/* ── entrance ──
+   Type arrives over-tracked and out of focus, then pulls together. This is
+   the title-card move from the film, and it replaces the old terminal
+   scramble — no character ever changes, only the tracking and the focus. */
+.hero__line { --trk: var(--trk-display); }
+.title, .title--long, .manifest__title { --trk: var(--trk-title); }
+.end__mark { --trk: 0.26em; }
+
+@keyframes settleIn {
+  from { letter-spacing: 0.46em; filter: blur(7px); }
+  to   { letter-spacing: var(--trk); filter: blur(0); }
+}
+.is-settled { animation: settleIn 1.8s var(--ease) both; }
+
 
 /* ── responsive ────────────────────────────────────────── */
 
@@ -925,7 +940,7 @@ dl { margin: 0; }
 @media (max-width: 620px) {
   :root { --gutter: 18px; }
   .hero { bottom: 120px; }
-  .hero__title { font-size: clamp(3.2rem, 19vw, 5rem); }
+  .hero__title { font-size: clamp(2.05rem, 14.2vw, 4rem); }
   .hero__lede { font-size: 12px; max-width: 92vw; }
   .eyebrow { font-size: 7.4px; letter-spacing: 0.08em; }
   .tag { font-size: 7px; padding: 1px 3px; }
@@ -942,8 +957,8 @@ dl { margin: 0; }
   .m-val { font-size: 8px; }
   .m-num { width: 22px; }
 
-  .title { font-size: clamp(2.3rem, 12.6vw, 3.6rem); }
-  .title--long { font-size: clamp(2rem, 11vw, 3.2rem); }
+  .title { font-size: clamp(1.7rem, 10.4vw, 3rem); }
+  .title--long { font-size: clamp(1.45rem, 8.8vw, 2.6rem); }
   .lede { font-size: 12px; }
   .spec { column-gap: 14px; }
   .spec dt { font-size: 7px; letter-spacing: 0.1em; }
@@ -970,8 +985,9 @@ dl { margin: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .grain, .crt::after { animation: none; }
+  .grain { animation: none; }
   .scrollcue__line i { animation: none; opacity: 1; height: 100%; }
   .readout__pulse, .caret { animation: none; }
   .boot { transition-duration: 0.01ms; }
+  .is-settled { animation: none; }
 }
