@@ -4,9 +4,9 @@
    ============================================================ */
 
 @font-face {
-  font-family: 'VT323';
-  src: url('/fonts/vt323.woff2') format('woff2');
-  font-weight: 400;
+  font-family: 'Jost';
+  src: url('/fonts/jost.woff2') format('woff2');
+  font-weight: 200 700;
   font-style: normal;
   font-display: swap;
 }
@@ -30,12 +30,16 @@
   --amber-dim: rgba(224, 177, 132, 0.55);
   --cyan: #bcd6ee;
 
-  --display: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  /* Two-tier type: Jost is the voice, JetBrains Mono is the instrument.
+     A monospace display face reads as a typewriter at 8rem — the letterforms
+     carry slab-like quirks that turn to stone when they are that large. */
+  --display: 'Jost', 'Helvetica Neue', Arial, sans-serif;
+  --text: 'Jost', 'Helvetica Neue', Arial, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
   /* wide tracking is the whole typographic idea: monumental, not dense */
-  --trk-display: 0.13em;
-  --trk-title: 0.16em;
+  --trk-display: 0.15em;
+  --trk-title: 0.17em;
 
   --gutter: clamp(24px, 5.2vw, 80px);
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -368,6 +372,31 @@ dl { margin: 0; }
   width: min(500px, 88vw);
 }
 
+/* copy sits over a live particle field; a soft radial scrim keeps it legible
+   without turning into a panel. opacity is driven by the block's own reveal. */
+.block::before {
+  content: '';
+  position: absolute;
+  inset: -34% -32% -34% -26%;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--scrim, 0);
+  background: radial-gradient(
+    62% 58% at 26% 50%,
+    rgba(4, 6, 10, 0.94) 0%,
+    rgba(4, 6, 10, 0.78) 52%,
+    rgba(4, 6, 10, 0) 100%
+  );
+}
+.chapter--connection .block::before {
+  background: radial-gradient(
+    62% 58% at 74% 50%,
+    rgba(4, 6, 10, 0.94) 0%,
+    rgba(4, 6, 10, 0.78) 52%,
+    rgba(4, 6, 10, 0) 100%
+  );
+}
+
 /* ── cover ─────────────────────────────────────────────── */
 
 .hero {
@@ -392,14 +421,14 @@ dl { margin: 0; }
 .hero__title {
   font-family: var(--display);
   font-weight: 200;
-  font-size: clamp(2.5rem, 8.1vw, 8rem);
-  line-height: 1.0;
+  font-size: clamp(2.6rem, 9.2vw, 9rem);
+  line-height: 0.96;
   letter-spacing: var(--trk-display);
   text-transform: uppercase;
   display: flex;
   flex-direction: column;
   color: #f7f9fc;
-  text-shadow: 0 0 60px rgba(150, 195, 255, 0.22), 0 0 2px rgba(255, 255, 255, 0.35);
+  text-shadow: 0 0 70px rgba(150, 195, 255, 0.26), 0 0 2px rgba(255, 255, 255, 0.3);
 }
 
 .hero__line { display: block; will-change: transform, opacity; }
@@ -412,11 +441,11 @@ dl { margin: 0; }
 .hero__lede {
   max-width: 480px;
   margin-top: clamp(16px, 2.8vh, 26px);
-  font-family: var(--mono);
+  font-family: var(--text);
   font-weight: 300;
-  font-size: clamp(12.5px, 1vw, 14.5px);
-  line-height: 1.7;
-  letter-spacing: 0.01em;
+  font-size: clamp(13px, 1.05vw, 15px);
+  line-height: 1.75;
+  letter-spacing: 0.02em;
   color: rgba(238, 240, 245, 0.72);
   text-wrap: pretty;
 }
@@ -483,8 +512,8 @@ dl { margin: 0; }
 .manifest__title {
   font-family: var(--display);
   font-weight: 200;
-  font-size: clamp(1.7rem, 3.8vw, 3.1rem);
-  line-height: 1.16;
+  font-size: clamp(1.9rem, 4.2vw, 3.5rem);
+  line-height: 1.14;
   letter-spacing: var(--trk-title);
   text-transform: uppercase;
   color: #f4f7fc;
@@ -510,8 +539,9 @@ dl { margin: 0; }
 .m-desc {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 10px;
-  letter-spacing: 0.06em;
+  font-family: var(--text);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
   color: rgba(242, 245, 250, 0.44);
   margin-left: 10px;
   white-space: nowrap;
@@ -568,23 +598,23 @@ dl { margin: 0; }
 .title {
   font-family: var(--display);
   font-weight: 200;
-  font-size: clamp(1.85rem, 4.9vw, 4.1rem);
-  line-height: 1.06;
+  font-size: clamp(1.9rem, 4.6vw, 3.75rem);
+  line-height: 1.1;
   letter-spacing: var(--trk-title);
   text-transform: uppercase;
   color: #f6f8fc;
   margin-bottom: clamp(14px, 2.2vh, 20px);
-  text-shadow: 0 0 50px rgba(150, 195, 255, 0.24), 0 0 2px rgba(255, 255, 255, 0.4);
+  text-shadow: 0 0 60px rgba(150, 195, 255, 0.28), 0 0 2px rgba(255, 255, 255, 0.35);
   will-change: transform, opacity;
 }
-.title--long { font-size: clamp(1.5rem, 3.9vw, 3.2rem); }
+.title--long { font-size: clamp(1.55rem, 3.8vw, 3.05rem); }
 
 .lede {
-  font-family: var(--mono);
+  font-family: var(--text);
   font-weight: 300;
-  font-size: clamp(12.5px, 0.95vw, 13.5px);
-  line-height: 1.95;
-  letter-spacing: 0.035em;
+  font-size: clamp(13px, 1vw, 14.5px);
+  line-height: 1.9;
+  letter-spacing: 0.025em;
   color: rgba(242, 245, 250, 0.8);
   max-width: 420px;
   margin-bottom: 6px;
@@ -692,17 +722,17 @@ dl { margin: 0; }
 .end__mark {
   font-family: var(--display);
   font-weight: 200;
-  font-size: clamp(1.15rem, 1.9vw, 1.65rem);
-  letter-spacing: 0.26em;
+  font-size: clamp(1.2rem, 2vw, 1.7rem);
+  letter-spacing: 0.3em;
   text-transform: uppercase;
   color: var(--paper);
   text-shadow: 0 0 40px rgba(150, 195, 255, 0.24);
 }
 .end__desc {
-  font-family: var(--mono);
+  font-family: var(--text);
   font-weight: 300;
-  font-size: 10px;
-  letter-spacing: 0.04em;
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
   color: var(--paper-dim);
 }
 .stats--end { margin-top: 16px; padding-top: 10px; max-width: 420px; gap: 22px; }
