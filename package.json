@@ -1,0 +1,18 @@
+{
+  "name": "kk-ai-lab-neural-universe",
+  "version": "1.0.0",
+  "description": "KK.AI LAB \u2014 Neural Universe. A cinematic WebGL journey through five states of intelligence.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10"
+  },
+  "private": true,
+  "type": "module"
+}
