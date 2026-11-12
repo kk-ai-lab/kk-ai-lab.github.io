@@ -16,8 +16,8 @@ const KEYS = [
   { pos: V(0.0, 1.32, 10.6), look: V(-0.82, 0.02, 0), fov: 43, roll: 0.0 },
   { pos: V(2.35, 1.15, 9.3), look: V(0.88, 0.0, 0), fov: 43, roll: -0.018 },
   { pos: V(-0.2, 0.9, 9.3), look: V(-0.64, 0.0, 0), fov: 43, roll: 0.024 },
-  { pos: V(-2.5, 1.3, 9.4), look: V(-1.28, 0.0, 0), fov: 43, roll: -0.014 },
-  { pos: V(0.0, 1.05, 11.2), look: V(-0.26, 0.15, -12), fov: 46, roll: 0.0 },
+  { pos: V(-3.45, 2.15, 8.55), look: V(-0.42, -0.04, 0), fov: 43, roll: -0.018 },
+  { pos: V(-0.75, 0.92, 10.9), look: V(0.72, -0.16, -14), fov: 46, roll: 0.0 },
 ];
 
 export class Universe {
@@ -170,6 +170,7 @@ export class Universe {
     this.lineUniforms = {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
+      uSpeed: { value: 0.16 },
     };
     const lm = new THREE.ShaderMaterial({
       uniforms: this.lineUniforms,
@@ -246,7 +247,11 @@ export class Universe {
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     g.setAttribute('aT', new THREE.BufferAttribute(aT, 1));
     g.setAttribute('aSeed', new THREE.BufferAttribute(aSeed, 1));
-    this.cageUniforms = { uTime: { value: 0 }, uOpacity: { value: 0 } };
+    this.cageUniforms = {
+      uTime: { value: 0 },
+      uOpacity: { value: 0 },
+      uSpeed: { value: 0.34 },
+    };
     const m = new THREE.ShaderMaterial({
       uniforms: this.cageUniforms,
       vertexShader: M.lineVertex,
@@ -348,7 +353,7 @@ export class Universe {
   _initPost() {
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.74, 0.85, 0.4);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.68, 0.85, 0.4);
     this.composer.addPass(this.bloom);
 
     this.output = new OutputPass();
@@ -358,8 +363,8 @@ export class Universe {
       tDiffuse: { value: null },
       uTime: { value: 0 },
       uAberration: { value: 1 },
-      uGrain: { value: 0.035 },
-      uVignette: { value: 0.38 },
+      uGrain: { value: 0.018 },
+      uVignette: { value: 0.28 },
     };
     this.grade = new ShaderPass({
       uniforms: this.gradeUniforms,
@@ -375,10 +380,17 @@ export class Universe {
     this.composer.addPass(this.grade);
   }
 
-  resize() {
+  setQuality(cap) {
+    if (cap >= this.dprCap) return false;
+    this.dprCap = cap;
+    this.resize(true);
+    return true;
+  }
+
+  resize(force = false) {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    if (w === this._lastW && h === this._lastH && this.renderer) return;
+    if (!force && w === this._lastW && h === this._lastH && this.renderer) return;
     this._lastW = w;
     this._lastH = h;
     const pr = Math.min(window.devicePixelRatio || 1, this.dprCap);
@@ -415,8 +427,11 @@ export class Universe {
     this.pulseOrigin.copy(this.mouseView);
   }
 
-  setState(s) {
+  setState(s, immediate = false) {
     this.targetState = s;
+    // Scroll progress is already eased by the shader's state interpolation;
+    // a second temporal lag here would detach copy from the formation.
+    if (immediate || this.reduced) this.state = s;
   }
 
   reveal() {
@@ -424,10 +439,12 @@ export class Universe {
   }
 
   update(dt, time) {
-    this.time = time;
+    // Reduced motion freezes the ambient clock, but direct pointer response stays live.
+    const t = this.reduced ? 0 : time;
+    this.time = t;
 
-    // eased state
-    const k = 1 - Math.exp(-dt * 4.2);
+    // Only the dev inspection path uses temporal easing now.
+    const k = this.reduced ? 1 : 1 - Math.exp(-dt * 10.5);
     this.state += (this.targetState - this.state) * k;
 
     const s = this.state;
@@ -468,14 +485,14 @@ export class Universe {
       roll += KEYS[i].roll * ww;
     }
 
-    const drift = this.reduced ? 0.15 : 1;
+    const ambient = this.reduced ? 0 : 1;
     const mx = this.pointer.x;
     const my = this.pointer.y;
-    pos.x += mx * 0.5 * drift + Math.sin(time * 0.13) * 0.13 * drift;
-    pos.y += my * 0.3 * drift + Math.cos(time * 0.11) * 0.1 * drift;
-    pos.z += Math.sin(time * 0.17) * 0.16 * drift - w[4] * (0.28 + Math.sin(time * 0.35) * 0.28);
-    look.x += mx * 0.72 * drift;
-    look.y += my * 0.46 * drift;
+    pos.x += mx * 0.5 + Math.sin(t * 0.13) * 0.13 * ambient;
+    pos.y += my * 0.3 + Math.cos(t * 0.11) * 0.1 * ambient;
+    pos.z += Math.sin(t * 0.17) * 0.16 * ambient - w[4] * (0.55 + Math.sin(t * 0.35) * 0.45) * ambient;
+    look.x += mx * 0.72;
+    look.y += my * 0.46;
 
     // portrait viewports have a very narrow horizontal FOV — widen and pull back
     const asp = this.camera.aspect;
@@ -506,18 +523,21 @@ export class Universe {
 
     this.pUniforms.uMouseView.value.copy(world);
     this.pUniforms.uMouseForce.value = this.force * 0.6;
-    this.pUniforms.uTime.value = time;
-    this.pUniforms.uDrift.value = (0.45 + Math.abs(f - 0.5) * 1.5) * (this.reduced ? 0.3 : 1);
+    // Each state has its own kinetic temperature: quiet singularity,
+    // flowing graph, growing helix, restless lattice, fast open tunnel.
+    const stateDrift = 0.38 + w[1] * 0.16 + w[2] * 0.32 + w[3] * 0.52 + w[4] * 0.14;
+    this.pUniforms.uTime.value = t;
+    this.pUniforms.uDrift.value = (stateDrift + Math.abs(f - 0.5) * 1.1) * ambient;
     const off = this.state - Math.round(this.state);
-    this.pUniforms.uSwirl.value = (this.reduced ? 0.3 : 1) * off * 2.3;
+    this.pUniforms.uSwirl.value = ambient * off * (2.0 + w[2] * 0.7 + w[4] * 0.45);
 
     this.vel += (this.velTarget - this.vel) * (1 - Math.exp(-dt * 6));
-    this.pUniforms.uDisperse.value = (this.reduced ? 0.2 : 1) * this.vel * 0.9;
+    this.pUniforms.uDisperse.value = ambient * this.vel * 0.9;
 
     // drag orbit + a slow idle rotation; the tunnel is directional, so the
     // spin is unwound as the field becomes INFINITY
     this.orbit += (this.orbitTarget - this.orbit) * (1 - Math.exp(-dt * 4.5));
-    const spin = this.orbit + (this.reduced ? 0 : time * 0.012);
+    const spin = this.orbit + t * 0.012;
     this.world.rotation.y = spin * (1 - w[4]);
 
     // pulse
@@ -535,40 +555,41 @@ export class Universe {
     }
 
     // graph
-    this.lineUniforms.uTime.value = time;
+    this.lineUniforms.uTime.value = t;
     this.lineUniforms.uOpacity.value = w[1] * 1.0 + w[0] * 0.08;
-    this.nodeUniforms.uTime.value = time;
+    this.nodeUniforms.uTime.value = t;
     this.nodeUniforms.uOpacity.value = w[1] * 0.9 + w[2] * 0.12;
 
-    this.cageUniforms.uTime.value = time;
-    this.cageUniforms.uOpacity.value = w[3] * 1.25 * this.fade;
+    this.cageUniforms.uTime.value = t;
+    this.cageUniforms.uOpacity.value = w[3] * 1.35 * this.fade;
 
     // halo follows the first two states
-    this.haloUniforms.uTime.value = time;
+    this.haloUniforms.uTime.value = t;
     this.haloUniforms.uOpacity.value = (w[0] * 0.62 + w[1] * 0.22 + w[2] * 0.05 + w[4] * 0.26) * this.fade;
-    this.haloUniforms.uSize.value = 6.6 + Math.sin(time * 0.5) * 0.25;
+    this.haloUniforms.uSize.value = 6.6 + Math.sin(t * 0.5) * 0.25;
 
     const ringOp = (w[0] * 0.035 + w[1] * 0.02) * this.fade;
     this.ringA.material.opacity = ringOp;
     this.ringB.material.opacity = ringOp * 0.6;
-    this.ringA.rotation.z = time * 0.045;
-    this.ringB.rotation.z = -time * 0.03;
+    this.ringB.visible = ringOp > 0.001;
+    this.ringA.rotation.z = t * 0.045;
+    this.ringB.rotation.z = -t * 0.03;
 
-    this.starUniforms.uTime.value = time;
-    this.stars.rotation.y = time * 0.004;
+    this.starUniforms.uTime.value = t;
+    this.stars.rotation.y = t * 0.004;
 
     // a pulse lands as a short optical kick: bloom flash + camera recoil
     this.impulse *= Math.exp(-dt * 5.5);
-    if (this.impulse > 0.001) {
-      const k = this.impulse * 0.05;
-      this.camera.position.x += (Math.random() - 0.5) * k;
-      this.camera.position.y += (Math.random() - 0.5) * k;
+    if (!this.reduced && this.impulse > 0.001) {
+      const kick = this.impulse * 0.05;
+      this.camera.position.x += (Math.random() - 0.5) * kick;
+      this.camera.position.y += (Math.random() - 0.5) * kick;
       this.camera.updateMatrixWorld();
     }
-    this.bloom.strength = 0.74 + this.impulse * 0.5;
+    this.bloom.strength = 0.68 + w[0] * 0.08 + w[4] * 0.16 + this.impulse * 0.45;
 
-    this.gradeUniforms.uTime.value = time;
-    this.gradeUniforms.uAberration.value = 0.55 + w[4] * 1.4 + this.force * 0.35;
+    this.gradeUniforms.uTime.value = t;
+    this.gradeUniforms.uAberration.value = 0.5 + w[1] * 0.12 + w[4] * 1.25 + this.force * 0.3;
   }
 
   render() {

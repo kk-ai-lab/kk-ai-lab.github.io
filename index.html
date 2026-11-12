@@ -18,9 +18,7 @@
 
 <canvas id="scene" aria-hidden="true"></canvas>
 <div class="scrim" aria-hidden="true"></div>
-<div class="vignette" aria-hidden="true"></div>
 <div class="crt" aria-hidden="true"></div>
-<div class="grain" aria-hidden="true"></div>
 
 <!-- ───────────────  HUD FRAME  ─────────────── -->
 <header class="hud hud--top">
@@ -45,11 +43,11 @@
 <nav class="rail" aria-label="State navigation">
   <span class="rail__title">STATE</span>
   <ul class="rail__list">
-    <li><a href="#origin" data-ch="0" data-cursor="travel"><span class="rail__num">00</span><span class="rail__name">ORIGIN</span><span class="rail__line" aria-hidden="true"></span></a></li>
-    <li><a href="#connection" data-ch="1" data-cursor="travel"><span class="rail__num">01</span><span class="rail__name">CONNECTION</span><span class="rail__line" aria-hidden="true"></span></a></li>
-    <li><a href="#emergence" data-ch="2" data-cursor="travel"><span class="rail__num">02</span><span class="rail__name">EMERGENCE</span><span class="rail__line" aria-hidden="true"></span></a></li>
-    <li><a href="#experimentation" data-ch="3" data-cursor="travel"><span class="rail__num">03</span><span class="rail__name">EXPERIMENT</span><span class="rail__line" aria-hidden="true"></span></a></li>
-    <li><a href="#infinity" data-ch="4" data-cursor="travel"><span class="rail__num">04</span><span class="rail__name">INFINITY</span><span class="rail__line" aria-hidden="true"></span></a></li>
+    <li><a href="#origin" data-ch="0" data-cursor="travel" aria-label="Travel to Origin"><span class="rail__num">00</span><span class="rail__name">ORIGIN</span><span class="rail__line" aria-hidden="true"></span></a></li>
+    <li><a href="#connection" data-ch="1" data-cursor="travel" aria-label="Travel to Connection"><span class="rail__num">01</span><span class="rail__name">CONNECTION</span><span class="rail__line" aria-hidden="true"></span></a></li>
+    <li><a href="#emergence" data-ch="2" data-cursor="travel" aria-label="Travel to Emergence"><span class="rail__num">02</span><span class="rail__name">EMERGENCE</span><span class="rail__line" aria-hidden="true"></span></a></li>
+    <li><a href="#experimentation" data-ch="3" data-cursor="travel" aria-label="Travel to Experiment"><span class="rail__num">03</span><span class="rail__name">EXPERIMENT</span><span class="rail__line" aria-hidden="true"></span></a></li>
+    <li><a href="#infinity" data-ch="4" data-cursor="travel" aria-label="Travel to Infinity"><span class="rail__num">04</span><span class="rail__name">INFINITY</span><span class="rail__line" aria-hidden="true"></span></a></li>
   </ul>
 </nav>
 
@@ -96,7 +94,7 @@
         </p>
 
         <dl class="stats" data-reveal>
-          <div><dt>particles</dt><dd>132,000</dd></div>
+          <div><dt>particles</dt><dd data-particle-count>132,000</dd></div>
           <div><dt>states</dt><dd>05</dd></div>
           <div><dt>shaders</dt><dd>06</dd></div>
           <div><dt>mode</dt><dd>realtime</dd></div>
@@ -116,7 +114,7 @@
       <div class="manifest" data-block data-window="0.44,0.58,0.9,0.99">
         <p class="index" data-reveal><span class="prompt">&gt;</span><span class="idx">—</span> / STATE_INDEX<span class="tag">05</span></p>
         <h2 class="manifest__title" data-reveal>One field,<br />five states.</h2>
-        <p class="lede" data-reveal>Every chapter re-parameterises the same 132,000 points.<span class="caret" aria-hidden="true"></span></p>
+        <p class="lede" data-reveal>Every chapter re-parameterises the same <span data-particle-count>132,000</span> points.<span class="caret" aria-hidden="true"></span></p>
 
         <ol class="manifest__list" data-reveal>
           <li>
@@ -243,7 +241,7 @@
 
       <div class="hint" data-block>
         <span class="hint__item" data-reveal><kbd>DRAG</kbd> orbit</span>
-        <span class="hint__item" data-reveal><kbd>CLICK</kbd> emit</span>
+        <span class="hint__item" data-reveal><kbd>TAP</kbd> emit</span>
         <span class="hint__item" data-reveal><kbd>HOLD</kbd> stream</span>
       </div>
     </div>
@@ -269,7 +267,7 @@
         <p class="end__mark" data-reveal>KK.AI_LAB</p>
         <p class="end__desc" data-reveal>neural.universe — a study in emergent form</p>
         <dl class="stats stats--end" data-reveal>
-          <div><dt>points</dt><dd>132,000</dd></div>
+          <div><dt>points</dt><dd data-particle-count>132,000</dd></div>
           <div><dt>states</dt><dd>05</dd></div>
           <div><dt>shaders</dt><dd>06</dd></div>
           <div><dt>year</dt><dd>2026</dd></div>
@@ -308,7 +306,7 @@
         <p class="boot__log" id="boot-log">SEED 0x4B4B2E41</p>
       </div>
       <ul class="boot__list" id="boot-list">
-        <li><span>geometry</span><i>132,000 pts / in situ</i></li>
+        <li><span>geometry</span><i><span data-particle-count>132,000</span> pts / in situ</i></li>
         <li><span>shaders</span><i>morph · drift · swirl</i></li>
         <li><span>compositor</span><i>bloom · grain · aberration</i></li>
         <li><span>signal</span><i>handshake 0x2E41</i></li>

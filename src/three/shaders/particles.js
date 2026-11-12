@@ -102,6 +102,15 @@ void main() {
   float spark = step(0.935, aRnd.x);
   col = mix(col, warm, spark * 0.85 * (uW0 * 0.6 + uW1));
 
+  // One chromatic signature per state, carried by the existing weights.
+  vec3 link    = vec3(0.24, 0.70, 1.00);
+  vec3 strand  = vec3(0.72, 0.38, 1.00);
+  vec3 lattice = vec3(0.70, 0.94, 0.88);
+  vec3 tunnel  = vec3(0.24, 0.48, 1.00);
+  vec3 stateTint = warm * uW0 + link * uW1 + strand * uW2
+                 + lattice * uW3 + tunnel * uW4;
+  col = mix(col, stateTint, 0.48);
+
   // the cursor is an energy probe: heat and brighten what it passes through
   col = mix(col, vec3(1.0, 0.9, 0.78), hot * 0.6);
   col *= 1.0 + hot * 0.35;

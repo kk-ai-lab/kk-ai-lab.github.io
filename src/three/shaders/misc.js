@@ -20,12 +20,13 @@ export const lineFragment = /* glsl */ `
 precision highp float;
 uniform float uTime;
 uniform float uOpacity;
+uniform float uSpeed;
 varying float vT;
 varying float vSeed;
 varying float vFade;
 
 void main() {
-  float head = fract(uTime * 0.16 + vSeed * 4.13);
+  float head = fract(uTime * uSpeed + vSeed * 4.13);
   float d = abs(vT - head);
   d = min(d, 1.0 - d);
   float pulse = exp(-pow(d * 10.0, 2.0));

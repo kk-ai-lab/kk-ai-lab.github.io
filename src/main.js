@@ -93,8 +93,10 @@ function stateAt(scroll) {
   if (scroll >= last.pos) return last.s;
   for (let i = 0; i < k.length - 1; i++) {
     if (scroll >= k[i].pos && scroll <= k[i + 1].pos) {
+      // Linear scroll progress here; the shader applies the only easing.
+      // Keeping both would make scroll and scene arrive at different times.
       const t = (scroll - k[i].pos) / Math.max(1, k[i + 1].pos - k[i].pos);
-      return k[i].s + (k[i + 1].s - k[i].s) * smoothstep(0, 1, t);
+      return k[i].s + (k[i + 1].s - k[i].s) * t;
     }
   }
   return last.s;
@@ -113,7 +115,7 @@ const bootList = $('#boot-list');
 
 const BOOT_STEPS = [
   [0.0, 'Initialising substrate', 'SEED 0x4B4B2E41'],
-  [0.18, 'Seeding neural lattice', 'BUFFER 130,000 VERTICES'],
+  [0.18, 'Seeding neural lattice', 'BUFFER 132,000 VERTICES'],
   [0.44, 'Calibrating optics', 'SHADER · MORPH CHAIN / 5 STATES'],
   [0.68, 'Compiling light field', 'BLOOM + CHROMATIC PASS'],
   [0.88, 'Signal acquired', 'HANDSHAKE OK'],
@@ -122,14 +124,19 @@ const BOOT_STEPS = [
 let revealStart = Infinity;
 let started = false;
 
+const seenBoot = (() => {
+  try { return sessionStorage.getItem('nu-booted') === '1'; }
+  catch { return false; }
+})();
+
 async function runBoot() {
   document.documentElement.style.overflow = 'hidden';
 
   // fonts load in parallel; the meter never waits on the network
-  const fontsReady = Promise.race([document.fonts.ready, sleep(1000)]).catch(() => {});
+  const fontsReady = Promise.race([document.fonts.ready, sleep(900)]).catch(() => {});
 
   const t0 = performance.now();
-  const DUR = REDUCED ? 300 : 1750;
+  const DUR = REDUCED ? 250 : seenBoot ? 320 : 900;
 
   await new Promise((resolve) => {
     const tick = () => {
@@ -154,19 +161,20 @@ async function runBoot() {
   });
 
   await fontsReady;
-  await sleep(REDUCED ? 20 : 220);
+  await sleep(REDUCED ? 0 : 80);
 
   boot.classList.add('is-done');
   boot.style.pointerEvents = 'none';
   document.documentElement.style.overflow = '';
+  try { sessionStorage.setItem('nu-booted', '1'); } catch { /* private mode */ }
 
   revealStart = performance.now();
   started = true;
 
   /* the title card pulls into focus, one line after the other */
-  $$('.hero__line').forEach((el, i) => setTimeout(() => settle(el), 420 + i * 320));
+  $$('.hero__line').forEach((el, i) => setTimeout(() => settle(el), 120 + i * 180));
 
-  setTimeout(() => boot.remove(), 1250);
+  setTimeout(() => boot.remove(), 900);
 }
 
 /* ────────────────────────────────────────────────────────────
@@ -194,6 +202,10 @@ try {
     '<div class="noscript">WebGL is unavailable — the neural field cannot be rendered on this device.</div>'
   );
 }
+
+const PARTICLE_LABEL = universe ? universe.data.count.toLocaleString('en-US') : '—';
+BOOT_STEPS[1][2] = `BUFFER ${PARTICLE_LABEL} VERTICES`;
+$$('[data-particle-count]').forEach((el) => { el.textContent = PARTICLE_LABEL; });
 
 /* ────────────────────────────────────────────────────────────
    pointer
@@ -288,6 +300,11 @@ function endGesture() {
 window.addEventListener('pointerdown', (e) => {
   if (!started) return;
   if (e.button !== undefined && e.button !== 0) return;
+  // UI controls are not part of the field: a button press must not emit a pulse.
+  if (e.target.closest?.('a, button, input, select, textarea, [role="button"]')) return;
+
+  setPointerFromEvent(e);
+  if (universe) universe.setPointer(pointer.nx, pointer.ny, true);
   pointerDown = true;
   dragging = false;
   downAt = performance.now();
@@ -364,6 +381,16 @@ function cancelTween() {
   cancelAnimationFrame(scrollTween);
 }
 
+/* Land after the copy has faded in and the formation has reached its hold.
+   The last chapter uses its pinned range, so its target is derived separately. */
+function chapterAnchor(ch) {
+  if (!ch || ch.i === 0) return 0;
+  if (ch.i === chapters.length - 1) {
+    return ch.top + Math.max(1, ch.height - window.innerHeight) * 0.3;
+  }
+  return ch.top + ch.height * 0.26;
+}
+
 window.addEventListener('wheel', cancelTween, { passive: true });
 window.addEventListener('touchstart', cancelTween, { passive: true });
 
@@ -374,8 +401,9 @@ $$('a[href^="#"]').forEach((a) => {
     if (!el) return;
     e.preventDefault();
     const ch = chapters.find((c) => c.el === el);
-    const extra = ch && ch.i > 0 ? (ch.height - window.innerHeight) * 0.16 : 0;
-    tweenScroll(el.offsetTop + extra);
+    const target = chapterAnchor(ch);
+    if (REDUCED) window.scrollTo(0, target);
+    else tweenScroll(target);
   });
 });
 
@@ -397,7 +425,7 @@ const clockEl = $('#clock');
 const scrollcue = $('#scrollcue');
 const railLinks = $$('.rail__list a');
 
-roCount.textContent = universe ? universe.data.count.toLocaleString('en-US') : '—';
+roCount.textContent = PARTICLE_LABEL;
 
 function tickClock() {
   if (!clockEl) return;
@@ -419,7 +447,11 @@ function updateHud(now, scroll, state, activeChapter) {
   if (active !== lastActive) {
     lastActive = active;
     roState.textContent = 'SYS / ' + STATE_NAMES[active];
-    railLinks.forEach((a, i) => a.classList.toggle('is-active', i === active));
+    railLinks.forEach((a, i) => {
+      a.classList.toggle('is-active', i === active);
+      if (i === active) a.setAttribute('aria-current', 'true');
+      else a.removeAttribute('aria-current');
+    });
   }
 
   const t = now * 0.001;
@@ -445,13 +477,13 @@ function updateHud(now, scroll, state, activeChapter) {
    ──────────────────────────────────────────────────────────── */
 
 let vh = window.innerHeight;
-let smoothScroll = window.scrollY;
 let lastScrollPos = window.scrollY;
 let scrollVel = 0;
 let lastNow = performance.now();
 let frameAcc = 0;
 let frameN = 0;
 let degraded = false;
+let qualityTier = 0;
 
 function frame(now) {
   const dtRaw = (now - lastNow) / 1000;
@@ -460,7 +492,6 @@ function frame(now) {
   const time = now * 0.001;
 
   const scroll = window.scrollY;
-  smoothScroll += (scroll - smoothScroll) * (1 - Math.exp(-dt * 7.5));
 
   const dv = (scroll - lastScrollPos) / Math.max(dt, 0.008);
   lastScrollPos = scroll;
@@ -468,9 +499,9 @@ function frame(now) {
   if (universe) universe.setVelocity(scrollVel);
   audio.setVelocity(scrollVel);
 
-  const state = universe && universe.frozen != null ? universe.frozen : stateAt(smoothScroll);
+  const state = universe && universe.frozen != null ? universe.frozen : stateAt(scroll);
   if (universe) {
-    universe.setState(state);
+    universe.setState(state, true);
     universe.update(dt, time);
     universe.render();
   }
@@ -524,7 +555,7 @@ function frame(now) {
           el.__vis = vis;
         }
         if (!el.__staticTransform) {
-          const ty = (1 - rp) * 22 + (1 - inE) * 26 - outE * 12;
+          const ty = (1 - rp) * 11 + (1 - inE) * 13 - outE * 7;
           if (el.__lastY === undefined || Math.abs(el.__lastY - ty) > 0.08) {
             el.style.transform = `translate3d(0,${ty.toFixed(2)}px,0)`;
             el.__lastY = ty;
@@ -553,7 +584,7 @@ function frame(now) {
       el.__vis = vis;
     }
     if (!el.__staticTransform) {
-      const ty = (1 - rp) * 14;
+      const ty = (1 - rp) * 8;
       if (el.__lastY === undefined || Math.abs(el.__lastY - ty) > 0.08) {
         el.style.transform = `translate3d(0,${ty.toFixed(2)}px,0)`;
         el.__lastY = ty;
@@ -568,16 +599,18 @@ function frame(now) {
 
   updateHud(now, scroll, state, Math.max(0, activeChapter - 1));
 
-  /* adaptive resolution — one-way, quiet */
-  if (!degraded && dtRaw > 0.001) {
+  /* adaptive resolution — sample only after boot; lower renderer and bloom together */
+  if (!degraded && started && dtRaw > 0.001) {
     frameAcc += dtRaw;
     frameN++;
     if (frameN >= 100) {
       const avg = frameAcc / frameN;
-      if (avg > 0.031 && universe) {
-        universe.dprCap = 1.25;
-        universe.resize();
-        degraded = true;
+      if (avg > 0.03 && universe) {
+        const nextCap = qualityTier === 0 ? 1.25 : 1;
+        if (universe.setQuality(nextCap)) {
+          qualityTier++;
+          degraded = nextCap <= 1;
+        }
       }
       frameAcc = 0;
       frameN = 0;
@@ -621,7 +654,6 @@ window.__nu = {
     universe.frozen = n;
     universe.targetState = n;
     universe.state = n;
-    smoothScroll = window.scrollY;
   },
   unfreeze() {
     if (universe) universe.frozen = null;
