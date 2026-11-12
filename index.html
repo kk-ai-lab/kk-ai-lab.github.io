@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>KK.AI LAB — Neural Universe</title>
+<meta name="description" content="A live model of intelligence as a physical system. Five states of matter, one continuous signal." />
+<meta name="theme-color" content="#050609" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23050609'/%3E%3Crect x='6' y='25' width='20' height='2' fill='%23ff9a57'/%3E%3Ctext x='16' y='21' font-family='monospace' font-size='13' fill='%23eef0f5' text-anchor='middle'%3E%3E_%3C/text%3E%3C/svg%3E" />
+<script>document.documentElement.classList.add('js');</script>
+<link rel="preload" href="/fonts/vt323.woff2" as="font" type="font/woff2" crossorigin />
+<link rel="preload" href="/fonts/jetbrains-mono.woff2" as="font" type="font/woff2" crossorigin />
+  <script type="module" crossorigin src="/assets/index-1lMrJkj3.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-CHx9SX_x.css">
+</head>
+<body>
+
+<a class="skip" href="#origin">Skip to content</a>
+
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="scrim" aria-hidden="true"></div>
+<div class="crt" aria-hidden="true"></div>
+
+<!-- ───────────────  HUD FRAME  ─────────────── -->
+<header class="hud hud--top">
+  <div class="brand" data-reveal>
+    <span class="brand__mark" aria-hidden="true">▚</span>
+    <span class="brand__name">KK.AI_LAB</span>
+    <span class="brand__div" aria-hidden="true"></span>
+    <span class="brand__sub">neural.universe</span>
+    <span class="brand__ver">v1.1</span>
+  </div>
+
+  <div class="hud__right" data-reveal>
+    <span class="hud__clock" id="clock">00:00:00</span>
+    <span class="hud__sep" aria-hidden="true">|</span>
+    <button class="sound" id="sound" type="button" aria-pressed="false" data-cursor="audio">
+      <span class="sound__bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      <span class="sound__label">AUDIO</span>
+    </button>
+  </div>
+</header>
+
+<nav class="rail" aria-label="State navigation">
+  <span class="rail__title">STATE</span>
+  <ul class="rail__list">
+    <li><a href="#origin" data-ch="0" data-cursor="travel" aria-label="Travel to Origin"><span class="rail__num">00</span><span class="rail__name">ORIGIN</span><span class="rail__line" aria-hidden="true"></span></a></li>
+    <li><a href="#connection" data-ch="1" data-cursor="travel" aria-label="Travel to Connection"><span class="rail__num">01</span><span class="rail__name">CONNECTION</span><span class="rail__line" aria-hidden="true"></span></a></li>
+    <li><a href="#emergence" data-ch="2" data-cursor="travel" aria-label="Travel to Emergence"><span class="rail__num">02</span><span class="rail__name">EMERGENCE</span><span class="rail__line" aria-hidden="true"></span></a></li>
+    <li><a href="#experimentation" data-ch="3" data-cursor="travel" aria-label="Travel to Experiment"><span class="rail__num">03</span><span class="rail__name">EXPERIMENT</span><span class="rail__line" aria-hidden="true"></span></a></li>
+    <li><a href="#infinity" data-ch="4" data-cursor="travel" aria-label="Travel to Infinity"><span class="rail__num">04</span><span class="rail__name">INFINITY</span><span class="rail__line" aria-hidden="true"></span></a></li>
+  </ul>
+</nav>
+
+<footer class="hud hud--bottom">
+  <div class="readout" data-reveal>
+    <span class="readout__pulse" aria-hidden="true"></span>
+    <span class="readout__state" id="ro-state">SYS / ORIGIN</span>
+    <span class="readout__sep" aria-hidden="true">|</span>
+    <span class="readout__item">N <span id="ro-count">000,000</span></span>
+    <span class="readout__item">S <span id="ro-ent">0.0000</span></span>
+    <span class="readout__item readout__item--hide">V <span id="ro-vel">0.00</span></span>
+    <span class="readout__item readout__item--hide">SEC <span id="ro-sec">00/05</span></span>
+  </div>
+  <div class="coords" data-reveal aria-hidden="true">
+    <span id="ro-pos">X +0.00  Y +0.00  Z +0.00</span>
+  </div>
+</footer>
+
+<div class="scrollcue" id="scrollcue" aria-hidden="true">
+  <span class="scrollcue__line"><i></i></span>
+  <span class="scrollcue__label">SCROLL</span>
+</div>
+
+<!-- ───────────────  JOURNEY  ─────────────── -->
+<main id="journey">
+
+  <!-- ── COVER + STATE INDEX ── -->
+  <section class="chapter chapter--hero" id="hero" data-chapter="0">
+    <div class="pin">
+
+      <div class="hero" data-block>
+        <p class="eyebrow" data-reveal>
+          <span class="prompt">&gt;</span> laboratory_for_computational_imagination
+          <span class="tag">2026</span>
+        </p>
+
+        <h1 class="hero__title">
+          <span class="hero__line" data-reveal>Neural</span>
+          <span class="hero__line hero__line--b" data-reveal>Universe</span>
+        </h1>
+
+        <p class="hero__lede" data-reveal>
+          A live model of intelligence as a physical system.<span class="caret" aria-hidden="true"></span>
+        </p>
+
+        <dl class="stats" data-reveal>
+          <div><dt>particles</dt><dd data-particle-count>132,000</dd></div>
+          <div><dt>states</dt><dd>05</dd></div>
+          <div><dt>shaders</dt><dd>06</dd></div>
+          <div><dt>mode</dt><dd>realtime</dd></div>
+        </dl>
+      </div>
+
+      <aside class="hero__meta" data-block>
+        <dl data-reveal>
+          <div><dt>vol</dt><dd>01</dd></div>
+          <div><dt>sys</dt><dd>open</dd></div>
+          <div><dt>seed</dt><dd>0x4B4B2E41</dd></div>
+          <div><dt>origin</dt><dd>00°00′00″</dd></div>
+          <div><dt>input</dt><dd>drag · orbit</dd></div>
+        </dl>
+      </aside>
+
+      <div class="manifest" data-block data-window="0.44,0.58,0.9,0.99">
+        <p class="index" data-reveal><span class="prompt">&gt;</span><span class="idx">—</span> / STATE_INDEX<span class="tag">05</span></p>
+        <h2 class="manifest__title" data-reveal>One field,<br />five states.</h2>
+        <p class="lede" data-reveal>Every chapter re-parameterises the same <span data-particle-count>132,000</span> points.<span class="caret" aria-hidden="true"></span></p>
+
+        <ol class="manifest__list" data-reveal>
+          <li>
+            <a href="#origin" data-cursor="travel">
+              <span class="m-num">00</span>
+              <span class="m-name">Origin</span>
+              <span class="m-desc">singular density</span>
+              <span class="m-val">S 0.0000</span>
+            </a>
+          </li>
+          <li>
+            <a href="#connection" data-cursor="travel">
+              <span class="m-num">01</span>
+              <span class="m-name">Connection</span>
+              <span class="m-desc">relation graph</span>
+              <span class="m-val">E 108</span>
+            </a>
+          </li>
+          <li>
+            <a href="#emergence" data-cursor="travel">
+              <span class="m-num">02</span>
+              <span class="m-name">Emergence</span>
+              <span class="m-desc">self-assembly</span>
+              <span class="m-val">r 5.90</span>
+            </a>
+          </li>
+          <li>
+            <a href="#experimentation" data-cursor="travel">
+              <span class="m-num">03</span>
+              <span class="m-name">Experiment</span>
+              <span class="m-desc">bounded volume</span>
+              <span class="m-val">V 8.00³</span>
+            </a>
+          </li>
+          <li>
+            <a href="#infinity" data-cursor="travel">
+              <span class="m-num">04</span>
+              <span class="m-name">Infinity</span>
+              <span class="m-desc">open system</span>
+              <span class="m-val">z →−∞</span>
+            </a>
+          </li>
+        </ol>
+
+        <p class="note" data-reveal><span class="prompt">&gt;</span> select a state — or scroll</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 00 ORIGIN -->
+  <section class="chapter chapter--origin" id="origin" data-chapter="1">
+    <div class="pin">
+      <div class="block" data-block>
+        <p class="index" data-reveal><span class="prompt">&gt;</span><span class="idx">00</span> / SINGULARITY<span class="tag">S 0.0000</span></p>
+        <h2 class="title" data-reveal>Origin</h2>
+        <p class="lede" data-reveal>Before the first word, a probability.<span class="caret" aria-hidden="true"></span></p>
+        <dl class="spec" data-reveal>
+          <div><dt>mass</dt><dd>∞</dd></div>
+          <div><dt>radius</dt><dd>0.340</dd></div>
+          <div><dt>entropy</dt><dd>0.0000</dd></div>
+          <div><dt>tilt</dt><dd>13.75°</dd></div>
+        </dl>
+        <p class="note" data-reveal><span class="prompt">&gt;</span> t = 0.000s — first state</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 01 CONNECTION -->
+  <section class="chapter chapter--connection" id="connection" data-chapter="2">
+    <div class="pin">
+      <div class="block" data-block>
+        <p class="index" data-reveal><span class="prompt">&gt;</span><span class="idx">01</span> / RELATION_GRAPH<span class="tag">E 108</span></p>
+        <h2 class="title" data-reveal>Connection</h2>
+        <p class="lede" data-reveal>The space between is the material.<span class="caret" aria-hidden="true"></span></p>
+        <dl class="spec" data-reveal>
+          <div><dt>nodes</dt><dd>56</dd></div>
+          <div><dt>edges</dt><dd>108</dd></div>
+          <div><dt>degree</dt><dd>3.86</dd></div>
+          <div><dt>latency</dt><dd>0.7ms</dd></div>
+        </dl>
+        <p class="note" data-reveal><span class="prompt">&gt;</span> every edge is live</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 EMERGENCE -->
+  <section class="chapter chapter--emergence" id="emergence" data-chapter="3">
+    <div class="pin">
+      <span class="edge-label" data-reveal>STRATUM 02 — SELF_ASSEMBLY</span>
+
+      <div class="block" data-block>
+        <p class="index" data-reveal><span class="prompt">&gt;</span><span class="idx">02</span> / SELF_ASSEMBLY<span class="tag">φ 0.941</span></p>
+        <h2 class="title" data-reveal>Emergence</h2>
+        <p class="lede" data-reveal>No one instructed the pattern.<span class="caret" aria-hidden="true"></span></p>
+        <dl class="spec" data-reveal>
+          <div><dt>strands</dt><dd>03</dd></div>
+          <div><dt>twist</dt><dd>1.92π</dd></div>
+          <div><dt>taper</dt><dd>0.78</dd></div>
+          <div><dt>coherence</dt><dd>0.941</dd></div>
+        </dl>
+        <p class="note" data-reveal><span class="prompt">&gt;</span> order arrives uninvited</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 EXPERIMENTATION -->
+  <section class="chapter chapter--experimentation" id="experimentation" data-chapter="4">
+    <div class="pin">
+      <div class="block" data-block>
+        <p class="index" data-reveal><span class="prompt">&gt;</span><span class="idx">03</span> / PERTURBATION<span class="tag">V 8.00³</span></p>
+        <h2 class="title title--long" data-reveal>Experiment</h2>
+        <p class="lede" data-reveal>We do not predict. We perturb.<span class="caret" aria-hidden="true"></span></p>
+        <dl class="spec" data-reveal>
+          <div><dt>lattice</dt><dd>42³</dd></div>
+          <div><dt>volume</dt><dd>8.00</dd></div>
+          <div><dt>damping</dt><dd>0.62</dd></div>
+          <div><dt>response</dt><dd>1.4ms</dd></div>
+        </dl>
+        <p class="note note--live" data-reveal>
+          <span class="prompt">&gt;</span> the field is listening<span class="caret caret--live" aria-hidden="true"></span>
+        </p>
+      </div>
+
+      <div class="hint" data-block>
+        <span class="hint__item" data-reveal><kbd>DRAG</kbd> orbit</span>
+        <span class="hint__item" data-reveal><kbd>TAP</kbd> emit</span>
+        <span class="hint__item" data-reveal><kbd>HOLD</kbd> stream</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 INFINITY -->
+  <section class="chapter chapter--infinity" id="infinity" data-chapter="5">
+    <div class="pin">
+      <div class="block" data-block>
+        <p class="index" data-reveal><span class="prompt">&gt;</span><span class="idx">04</span> / OPEN_SYSTEM<span class="tag">z →−∞</span></p>
+        <h2 class="title" data-reveal>Infinity</h2>
+        <p class="lede" data-reveal>There is no final layer.<span class="caret" aria-hidden="true"></span></p>
+        <dl class="spec" data-reveal>
+          <div><dt>rings</dt><dd>46</dd></div>
+          <div><dt>span</dt><dd>27.60</dd></div>
+          <div><dt>falloff</dt><dd>1/z</dd></div>
+          <div><dt>limit</dt><dd>—</dd></div>
+        </dl>
+      </div>
+
+      <div class="end" data-block data-window="0.54,0.7,1.4,1.5">
+        <span class="end__rule" aria-hidden="true" data-reveal></span>
+        <p class="end__mark" data-reveal>KK.AI_LAB</p>
+        <p class="end__desc" data-reveal>neural.universe — a study in emergent form</p>
+        <dl class="stats stats--end" data-reveal>
+          <div><dt>points</dt><dd data-particle-count>132,000</dd></div>
+          <div><dt>states</dt><dd>05</dd></div>
+          <div><dt>shaders</dt><dd>06</dd></div>
+          <div><dt>year</dt><dd>2026</dd></div>
+        </dl>
+        <button class="end__back" type="button" id="return" data-cursor="return" data-reveal>
+          <span>&gt; return_to_origin</span>
+          <svg viewBox="0 0 24 12" width="26" height="13" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true">
+            <path d="M0 11 23 11M18 6l5 5-5 5" transform="translate(0,-5)"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ───────────────  CURSOR  ─────────────── -->
+<div class="cursor" id="cursor" aria-hidden="true">
+  <span class="cursor__ring"></span>
+  <span class="cursor__dot"></span>
+  <span class="cursor__label" id="cursor-label"></span>
+</div>
+
+<!-- ───────────────  BOOT  ─────────────── -->
+<div class="boot" id="boot" aria-live="polite">
+  <div class="boot__inner">
+    <div class="boot__top">
+      <span>KK.AI_LAB</span>
+      <span>neural.universe</span>
+    </div>
+    <div class="boot__center">
+      <p class="boot__status" id="boot-status">Initialising substrate</p>
+      <div class="boot__meter"><i id="boot-bar"></i></div>
+      <div class="boot__row">
+        <p class="boot__pct" id="boot-pct">000</p>
+        <p class="boot__log" id="boot-log">SEED 0x4B4B2E41</p>
+      </div>
+      <ul class="boot__list" id="boot-list">
+        <li><span>geometry</span><i><span data-particle-count>132,000</span> pts / in situ</i></li>
+        <li><span>shaders</span><i>morph · drift · swirl</i></li>
+        <li><span>compositor</span><i>bloom · grain · aberration</i></li>
+        <li><span>signal</span><i>handshake 0x2E41</i></li>
+      </ul>
+    </div>
+    <div class="boot__bottom">
+      <span>WebGL2 / GLSL</span>
+      <span>VOL. 01 / 2026</span>
+    </div>
+  </div>
+</div>
+
+<noscript>
+  <div class="noscript">This experience requires JavaScript and WebGL.</div>
+</noscript>
+
+</body>
+</html>
